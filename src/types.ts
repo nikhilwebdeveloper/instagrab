@@ -40,6 +40,7 @@ export interface InstagramMediaDetails {
   carouselItems?: CarouselItem[];
   audioExtractUrl?: string; // Specific extracted MP3 stream
   durationText?: string;
+  isFallbackGenerated?: boolean;
 }
 
 export interface DownloadHistoryItem {

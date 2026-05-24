@@ -405,31 +405,38 @@ app.all("/api/*", (req, res) => {
   });
 });
 
-// Bind standard listener immediately to prevent any startup connection drops or cold gateway 404s
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Instagram Downloader Server actively running on http://localhost:${PORT}`);
-});
+// Mount Vite middleware (or production static assets) BEFORE starting to listen on port 3000
+async function bootstrapServer() {
+  try {
+    if (process.env.NODE_ENV !== "production") {
+      console.log("Initializing Vite Dev Server in development mode...");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+      console.log("Mounted Vite Dev Server Middleware successfully.");
+    } else {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+      console.log("Serving production assets from dist/ in production mode.");
+    }
 
-// Configure Vite middleware and SPA fallback asynchronously in the background
-async function launchServer() {
-  if (process.env.NODE_ENV !== "production") {
-    console.log("Initializing Vite Dev Server in the background...");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
+    // Now bind and listen to prevent early requests failing with 404 before middleware is mounted
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Instagram Downloader Server actively running on http://localhost:${PORT}`);
     });
-    app.use(vite.middlewares);
-    console.log("Mounted Vite Dev Server Middleware successfully.");
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+  } catch (err) {
+    console.error("Critical error during server bootstrap:", err);
+    // Safe emergency listener block if Vite mounting fails
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Instagram Downloader Server actively running in EMERGENCY fallback mode on http://localhost:${PORT}`);
     });
-    console.log("Serving production assets from dist/");
   }
 }
 
-launchServer().catch((err) => {
-  console.error("Failed to compile or mount background Vite middleware:", err);
-});
+bootstrapServer();
+
