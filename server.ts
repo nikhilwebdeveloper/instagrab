@@ -543,5 +543,11 @@ async function bootstrapServer() {
   }
 }
 
-bootstrapServer();
+if (process.env.VERCEL) {
+  console.log("Running in Vercel. Server will be auto-bootstrapped by Vercel serverless function.");
+} else {
+  bootstrapServer();
+}
+
+export default app;
 
