@@ -63,60 +63,61 @@ app.get("/api/health", (req, res) => {
 
 // Primary Endpoint: Intelligently analyze the Instagram url and package visual details
 app.post("/api/analyze", async (req, res) => {
-  const { url } = req.body;
+  try {
+    const { url } = req.body;
 
-  if (!url || typeof url !== "string") {
-    return res.status(400).json({ error: "Please provide a valid Instagram URL" });
-  }
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({ error: "Please provide a valid Instagram URL" });
+    }
 
-  // Pre-validate that it looks like Instagram or a related shared URL
-  const isInstagramUrl = /instagram\.com|instagr\.am/i.test(url);
-  if (!isInstagramUrl) {
-    return res.status(400).json({ 
-      error: "यह एक वैध इंस्टाग्राम लिंक नहीं है। कृपया असली इंस्टाग्राम पोस्ट, रील, स्टोरी या ऑडियो का लिंक पेस्ट करें।" 
-    });
-  }
+    // Pre-validate that it looks like Instagram or a related shared URL
+    const isInstagramUrl = /instagram\.com|instagr\.am/i.test(url);
+    if (!isInstagramUrl) {
+      return res.status(400).json({ 
+        error: "यह एक वैध इंस्टाग्राम लिंक नहीं है। कृपया असली इंस्टाग्राम पोस्ट, रील, स्टोरी या ऑडियो का लिंक पेस्ट करें।" 
+      });
+    }
 
-  // Parse type based on URL structures:
-  // - reels: instagram.com/reel/C7abcde/
-  // - posts: instagram.com/p/C7abcde/
-  // - stories: instagram.com/stories/username/12345/
-  // - TV/IGTV: instagram.com/tv/C7abc/
-  // - Audio page: instagram.com/reels/audio/12345/
-  let type: 'reel' | 'post' | 'carousel' | 'story' | 'audio' = 'reel';
-  if (url.includes("/p/")) {
-    // If it has a Carousel keyword or we determine it's multi-post:
-    type = url.includes("carousel") ? "carousel" : "post";
-  } else if (url.includes("/stories/")) {
-    type = "story";
-  } else if (url.includes("/reels/audio/") || url.includes("/audio/")) {
-    type = "audio";
-  } else if (url.includes("/reel/")) {
-    type = "reel";
-  }
+    // Parse type based on URL structures:
+    // - reels: instagram.com/reel/C7abcde/
+    // - posts: instagram.com/p/C7abcde/
+    // - stories: instagram.com/stories/username/12345/
+    // - TV/IGTV: instagram.com/tv/C7abc/
+    // - Audio page: instagram.com/reels/audio/12345/
+    let type: 'reel' | 'post' | 'carousel' | 'story' | 'audio' = 'reel';
+    if (url.includes("/p/")) {
+      // If it has a Carousel keyword or we determine it's multi-post:
+      type = url.includes("carousel") ? "carousel" : "post";
+    } else if (url.includes("/stories/")) {
+      type = "story";
+    } else if (url.includes("/reels/audio/") || url.includes("/audio/")) {
+      type = "audio";
+    } else if (url.includes("/reel/")) {
+      type = "reel";
+    }
 
-  // Parse ID
-  let mediaId = "insta_" + Math.random().toString(36).substring(2, 9);
-  const matchId = url.match(/\/(p|reel|tv|stories|audio)\/([a-zA-Z0-9_\-]+)/);
-  if (matchId && matchId[2]) {
-    mediaId = matchId[2];
-  }
+    // Parse ID
+    let mediaId = "insta_" + Math.random().toString(36).substring(2, 9);
+    const matchId = url.match(/\/(p|reel|tv|stories|audio)\/([a-zA-Z0-9_\-]+)/);
+    if (matchId && matchId[2]) {
+      mediaId = matchId[2];
+    }
 
-  // Default Fallback values
-  let creator = "aesthetic_vibes";
-  let creatorName = "Aesthetic Vibes";
-  let creatorAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120";
-  let isVerified = true;
-  let caption = "Exploring stunning views and ambient settings. ✨ #aesthetics #mindfulness #trending #vibes";
-  let likes = "24K";
-  let comments = "1,842";
-  let views = "1.2M";
-  let themeIndex = 0; // default NATURE
+    // Default Fallback values
+    let creator = "aesthetic_vibes";
+    let creatorName = "Aesthetic Vibes";
+    let creatorAvatar = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=120";
+    let isVerified = true;
+    let caption = "Exploring stunning views and ambient settings. ✨ #aesthetics #mindfulness #trending #vibes";
+    let likes = "24K";
+    let comments = "1,842";
+    let views = "1.2M";
+    let themeIndex = 0; // default NATURE
 
-  // Use Gemini to intelligently personalize the experience based on URL keywords/structure
-  if (ai) {
-    try {
-      const prompt = `Analyze this Instagram URL: "${url}". 
+    // Use Gemini to intelligently personalize the experience based on URL keywords/structure
+    if (ai) {
+      try {
+        const prompt = `Analyze this Instagram URL: "${url}". 
 Generate a JSON descriptive object mimicking actual Instagram post elements. Let it feel 100% authentic, tailored to the words in the URL if detectable, or styled in a popular culture context.
 Response must use this EXACT JSON schema:
 {
@@ -131,178 +132,184 @@ Response must use this EXACT JSON schema:
 }
 Output STRICTLY valid JSON only. Do not wrap in markdown tags or add text prefix/suffix.`;
 
-      const geminiResponse = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
+        const geminiResponse = await ai.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+          }
+        });
+
+        const textOutput = geminiResponse.text?.trim() || "";
+        if (textOutput) {
+          const data = JSON.parse(textOutput);
+          creator = data.username || creator;
+          creatorName = data.name || creatorName;
+          isVerified = data.isVerified !== undefined ? data.isVerified : isVerified;
+          caption = data.caption || caption;
+          likes = data.likes || likes;
+          comments = data.comments || comments;
+          views = data.views || views;
+          
+          // Match theme Category
+          const theme = data.themeCategory;
+          if (theme === "ocean") themeIndex = 1;
+          else if (theme === "city") themeIndex = 2;
+          else if (theme === "cyberpunk") themeIndex = 3;
+          else if (theme === "cat") themeIndex = 4;
+          else themeIndex = 0; // Nature
         }
-      });
-
-      const textOutput = geminiResponse.text?.trim() || "";
-      if (textOutput) {
-        const data = JSON.parse(textOutput);
-        creator = data.username || creator;
-        creatorName = data.name || creatorName;
-        isVerified = data.isVerified !== undefined ? data.isVerified : isVerified;
-        caption = data.caption || caption;
-        likes = data.likes || likes;
-        comments = data.comments || comments;
-        views = data.views || views;
-        
-        // Match theme Category
-        const theme = data.themeCategory;
-        if (theme === "ocean") themeIndex = 1;
-        else if (theme === "city") themeIndex = 2;
-        else if (theme === "cyberpunk") themeIndex = 3;
-        else if (theme === "cat") themeIndex = 4;
-        else themeIndex = 0; // Nature
+      } catch (e) {
+        console.warn("Gemini analyze failed or parsed in fallback:", e);
+        // In case of error, perform simple URL analysis
+        if (url.toLowerCase().includes("tech")) themeIndex = 3; // Cyberpunk
+        else if (url.toLowerCase().includes("cat") || url.toLowerCase().includes("pet")) themeIndex = 4; // Cat
+        else if (url.toLowerCase().includes("nature") || url.toLowerCase().includes("mountain")) themeIndex = 0; // Nature
+        else if (url.toLowerCase().includes("travel") || url.toLowerCase().includes("sea") || url.toLowerCase().includes("beach")) themeIndex = 1; // Ocean
+        else themeIndex = 2; // City
       }
-    } catch (e) {
-      console.warn("Gemini analyze failed or parsed in fallback:", e);
-      // In case of error, perform simple URL analysis
-      if (url.toLowerCase().includes("tech")) themeIndex = 3; // Cyberpunk
-      else if (url.toLowerCase().includes("cat") || url.toLowerCase().includes("pet")) themeIndex = 4; // Cat
-      else if (url.toLowerCase().includes("nature") || url.toLowerCase().includes("mountain")) themeIndex = 0; // Nature
-      else if (url.toLowerCase().includes("travel") || url.toLowerCase().includes("sea") || url.toLowerCase().includes("beach")) themeIndex = 1; // Ocean
-      else themeIndex = 2; // City
-    }
-  } else {
-    // If no AI, select theme based on keywords
-    const lowerUrl = url.toLowerCase();
-    if (lowerUrl.includes("tech") || lowerUrl.includes("gadget")) {
-      themeIndex = 3; // Cyberpunk
-      creator = "tech_insider";
-      creatorName = "Tech Insider 💻";
-      caption = "Futuristic tech updates and glowing setups. High quality preview of tomorrow. #cyberpunk #gadgets #techtok";
-    } else if (lowerUrl.includes("cat") || lowerUrl.includes("dog") || lowerUrl.includes("pet") || lowerUrl.includes("cute")) {
-      themeIndex = 4; // Cat
-      creator = "pixel_cuddle";
-      creatorName = "Pixel Cuddle 🐾";
-      caption = "Just a cozy day dreaming about treats. Kitna pyaara hai ye! 🥰 #catsofinstagram #cozycats #petlovers";
-    } else if (lowerUrl.includes("travel") || lowerUrl.includes("sea") || lowerUrl.includes("beach") || lowerUrl.includes("ocean")) {
-      themeIndex = 1; // Ocean
-      creator = "wanderlust_sid";
-      creatorName = "Siddharth Travel Diaries";
-      caption = "Peaceful waves hitting the shore. Nature therapy is real. Iss summer vacation yaha jana toh banta hai. 🌊🏖️ #travelgram #seaside #peace";
-    } else if (lowerUrl.includes("urban") || lowerUrl.includes("city") || lowerUrl.includes("night")) {
-      themeIndex = 2; // City
-      creator = "city_explorer";
-      creatorName = "Rohan | Street Chronicles";
-      caption = "Chasing neon signs in the middle of a beautiful rainy night. Aesthetic setting at its peak. 🏙️🌧️ #cityscapes #neonlight #ambience";
-    }
-  }
-
-  // Construct High Quality Source files assigned to this theme
-  let videoSource = NATURE_VIDEO;
-  if (themeIndex === 1) videoSource = OCEAN_VIDEO;
-  else if (themeIndex === 2) videoSource = CITY_VIDEO;
-  else if (themeIndex === 3) videoSource = CYBER_VIDEO;
-  else if (themeIndex === 4) videoSource = CAT_VIDEO;
-
-  const coverImage = IMAGES[themeIndex];
-  const audioFile = AUDIOS[themeIndex % AUDIOS.length];
-
-  // Map elements according to requested type
-  const responseData: any = {
-    url,
-    type,
-    id: mediaId,
-    title: type.toUpperCase() + " from @" + creator,
-    caption,
-    author: {
-      username: creator,
-      fullName: creatorName,
-      avatarUrl: `https://images.unsplash.com/photo-${themeIndex === 0 ? '1544005313-94ddf0286df2' : '1506794778202-cad84cf45f1d'}?auto=format&fit=crop&q=80&w=120`,
-      isVerified,
-      followersCount: "135K"
-    },
-    metrics: {
-      likes,
-      comments,
-      views
-    },
-    mediaItems: [],
-    audioExtractUrl: audioFile
-  };
-
-  // Build media Items array
-  if (type === 'reel') {
-    responseData.mediaItems = [
-      {
-        id: mediaId + "_video",
-        type: 'video',
-        url: videoSource,
-        thumbnailUrl: coverImage,
-        duration: 25,
-        title: "High-Definition 1080p Reel Video"
-      }
-    ];
-  } else if (type === 'audio') {
-    responseData.mediaItems = [
-      {
-        id: mediaId + "_audio",
-        type: 'audio',
-        url: audioFile,
-        thumbnailUrl: coverImage,
-        duration: 180,
-        title: "Instagram High Bitrate Audio track"
-      }
-    ];
-  } else if (type === 'story') {
-    responseData.mediaItems = [
-      {
-        id: mediaId + "_story_vid",
-        type: 'video',
-        url: videoSource,
-        thumbnailUrl: coverImage,
-        duration: 15,
-        title: "Instagram Story Highlight (1080p Video)"
-      }
-    ];
-  } else if (type === 'carousel') {
-    responseData.carouselItems = [
-      { id: mediaId + "_c1", type: 'image', url: IMAGES[themeIndex % IMAGES.length], thumbnailUrl: IMAGES[themeIndex % IMAGES.length] },
-      { id: mediaId + "_c2", type: 'video', url: videoSource, thumbnailUrl: IMAGES[(themeIndex + 1) % IMAGES.length] },
-      { id: mediaId + "_c3", type: 'image', url: IMAGES[(themeIndex + 2) % IMAGES.length], thumbnailUrl: IMAGES[(themeIndex + 2) % IMAGES.length] }
-    ];
-    responseData.mediaItems = [
-      {
-        id: mediaId + "_carousel_parent",
-        type: 'carousel',
-        url: IMAGES[themeIndex],
-        thumbnailUrl: IMAGES[themeIndex],
-        title: "Carousel Multi-Media Grid (Photos & Videos)"
-      }
-    ];
-  } else {
-    // Normal Image/Video Post
-    const isImageOnly = url.includes("photo") || url.includes("p_img");
-    if (isImageOnly) {
-      responseData.mediaItems = [
-        {
-          id: mediaId + "_image",
-          type: 'image',
-          url: coverImage,
-          thumbnailUrl: coverImage,
-          title: "Full-HD Original Photography (PNG/JPG)"
-        }
-      ];
     } else {
+      // If no AI, select theme based on keywords
+      const lowerUrl = url.toLowerCase();
+      if (lowerUrl.includes("tech") || lowerUrl.includes("gadget")) {
+        themeIndex = 3; // Cyberpunk
+        creator = "tech_insider";
+        creatorName = "Tech Insider 💻";
+        caption = "Futuristic tech updates and glowing setups. High quality preview of tomorrow. #cyberpunk #gadgets #techtok";
+      } else if (lowerUrl.includes("cat") || lowerUrl.includes("dog") || lowerUrl.includes("pet") || lowerUrl.includes("cute")) {
+        themeIndex = 4; // Cat
+        creator = "pixel_cuddle";
+        creatorName = "Pixel Cuddle 🐾";
+        caption = "Just a cozy day dreaming about treats. Kitna pyaara hai ye! 🥰 #catsofinstagram #cozycats #petlovers";
+      } else if (lowerUrl.includes("travel") || lowerUrl.includes("sea") || lowerUrl.includes("beach") || lowerUrl.includes("ocean")) {
+        themeIndex = 1; // Ocean
+        creator = "wanderlust_sid";
+        creatorName = "Siddharth Travel Diaries";
+        caption = "Peaceful waves hitting the shore. Nature therapy is real. Iss summer vacation yaha jana toh banta hai. 🌊🏖️ #travelgram #seaside #peace";
+      } else if (lowerUrl.includes("urban") || lowerUrl.includes("city") || lowerUrl.includes("night")) {
+        themeIndex = 2; // City
+        creator = "city_explorer";
+        creatorName = "Rohan | Street Chronicles";
+        caption = "Chasing neon signs in the middle of a beautiful rainy night. Aesthetic setting at its peak. 🏙️🌧️ #cityscapes #neonlight #ambience";
+      }
+    }
+
+    // Construct High Quality Source files assigned to this theme
+    let videoSource = NATURE_VIDEO;
+    if (themeIndex === 1) videoSource = OCEAN_VIDEO;
+    else if (themeIndex === 2) videoSource = CITY_VIDEO;
+    else if (themeIndex === 3) videoSource = CYBER_VIDEO;
+    else if (themeIndex === 4) videoSource = CAT_VIDEO;
+
+    const coverImage = IMAGES[themeIndex];
+    const audioFile = AUDIOS[themeIndex % AUDIOS.length];
+
+    // Map elements according to requested type
+    const responseData: any = {
+      url,
+      type,
+      id: mediaId,
+      title: type.toUpperCase() + " from @" + creator,
+      caption,
+      author: {
+        username: creator,
+        fullName: creatorName,
+        avatarUrl: `https://images.unsplash.com/photo-${themeIndex === 0 ? '1544005313-94ddf0286df2' : '1506794778202-cad84cf45f1d'}?auto=format&fit=crop&q=80&w=120`,
+        isVerified,
+        followersCount: "135K"
+      },
+      metrics: {
+        likes,
+        comments,
+        views
+      },
+      mediaItems: [],
+      audioExtractUrl: audioFile
+    };
+
+    // Build media Items array
+    if (type === 'reel') {
       responseData.mediaItems = [
         {
           id: mediaId + "_video",
           type: 'video',
           url: videoSource,
           thumbnailUrl: coverImage,
-          duration: 30,
-          title: "High-Definition 1080p Video Post"
+          duration: 25,
+          title: "High-Definition 1080p Reel Video"
         }
       ];
+    } else if (type === 'audio') {
+      responseData.mediaItems = [
+        {
+          id: mediaId + "_audio",
+          type: 'audio',
+          url: audioFile,
+          thumbnailUrl: coverImage,
+          duration: 180,
+          title: "Instagram High Bitrate Audio track"
+        }
+      ];
+    } else if (type === 'story') {
+      responseData.mediaItems = [
+        {
+          id: mediaId + "_story_vid",
+          type: 'video',
+          url: videoSource,
+          thumbnailUrl: coverImage,
+          duration: 15,
+          title: "Instagram Story Highlight (1080p Video)"
+        }
+      ];
+    } else if (type === 'carousel') {
+      responseData.carouselItems = [
+        { id: mediaId + "_c1", type: 'image', url: IMAGES[themeIndex % IMAGES.length], thumbnailUrl: IMAGES[themeIndex % IMAGES.length] },
+        { id: mediaId + "_c2", type: 'video', url: videoSource, thumbnailUrl: IMAGES[(themeIndex + 1) % IMAGES.length] },
+        { id: mediaId + "_c3", type: 'image', url: IMAGES[(themeIndex + 2) % IMAGES.length], thumbnailUrl: IMAGES[(themeIndex + 2) % IMAGES.length] }
+      ];
+      responseData.mediaItems = [
+        {
+          id: mediaId + "_carousel_parent",
+          type: 'carousel',
+          url: IMAGES[themeIndex],
+          thumbnailUrl: IMAGES[themeIndex],
+          title: "Carousel Multi-Media Grid (Photos & Videos)"
+        }
+      ];
+    } else {
+      // Normal Image/Video Post
+      const isImageOnly = url.includes("photo") || url.includes("p_img");
+      if (isImageOnly) {
+        responseData.mediaItems = [
+          {
+            id: mediaId + "_image",
+            type: 'image',
+            url: coverImage,
+            thumbnailUrl: coverImage,
+            title: "Full-HD Original Photography (PNG/JPG)"
+          }
+        ];
+      } else {
+        responseData.mediaItems = [
+          {
+            id: mediaId + "_video",
+            type: 'video',
+            url: videoSource,
+            thumbnailUrl: coverImage,
+            duration: 30,
+            title: "High-Definition 1080p Video Post"
+          }
+        ];
+      }
     }
-  }
 
-  res.json(responseData);
+    res.json(responseData);
+  } catch (err: any) {
+    console.error("Unhandled API Error during link analysis:", err);
+    res.status(500).json({ 
+      error: "An unexpected server error occurred while analyzing the link. Please try again in a moment." 
+    });
+  }
 });
 
 // Downloader proxy to set correct attachment headers, content type & trigger authentic native browser download

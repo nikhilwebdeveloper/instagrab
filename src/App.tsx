@@ -58,12 +58,23 @@ export default function App() {
         body: JSON.stringify({ url })
       });
 
-      const data = await response.json();
-
+      // Safely handle non-OK responses first to avoid crashing on .json() of HTML pages
       if (!response.ok) {
-        throw new Error(data.error || "Error loading link. Please check your URL and try again.");
+        let errorMsg = "Error loading link. Please check your URL and try again.";
+        try {
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await response.json();
+            errorMsg = errData.error || errorMsg;
+          } else {
+            console.warn("Server returned a non-JSON error status code:", response.status);
+          }
+        } catch (_) {}
+        throw new Error(errorMsg);
       }
 
+      // Safe JSON parsing for successful status codes
+      const data = await response.json();
       setMediaDetails(data);
     } catch (err: any) {
       console.error("Analyze Failure:", err);
