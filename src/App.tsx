@@ -60,7 +60,7 @@ export default function App() {
 
       // Safely handle non-OK responses first to avoid crashing on .json() of HTML pages
       if (!response.ok) {
-        let errorMsg = `Bhai, server side se temporary issue aaya hai (Status ${response.status}). Thodi der baad try karein!`;
+        let errorMsg = `An error occurred on the server (Status ${response.status}). Please check your URL and try again.`;
         try {
           const contentType = response.headers.get("content-type");
           if (contentType && contentType.includes("application/json")) {
@@ -70,7 +70,7 @@ export default function App() {
             console.warn("Server returned a non-JSON error status code:", response.status);
             const rawBody = await response.text();
             if (rawBody.toLowerCase().includes("cannot post") || response.status === 404) {
-              errorMsg = "Bhai, server abhi reload ho raha hai back-end par. Please 5-10 seconds dekar page key refresh karein sab thik ho jayega!";
+              errorMsg = "The analysis service is currently refreshing. Please wait a few seconds and try again.";
             }
           }
         } catch (_) {}
@@ -82,7 +82,7 @@ export default function App() {
       setMediaDetails(data);
     } catch (err: any) {
       console.error("Analyze Failure:", err);
-      setError(err.message || "Bhai, server connection issue lag raha hai. Ek baar retry karein!");
+      setError(err.message || "Unable to reach the server. Please check your internet connection or try again shortly!");
     } finally {
       setIsLoading(false);
     }

@@ -34,11 +34,11 @@ export default function DownloaderForm({ onAnalyze, isLoading, error, directUrl 
         }
       } else {
         // Fallback or warning if iframe permission block
-        alert("Bhai, copy-paste automatic work nahi kar raha is device par. Please box me koshish karke ya CTRL+V / long-press karke link paste karein!");
+        alert("Automatic paste is not supported on this browser/device. Please manually paste the link into the box!");
       }
     } catch (e) {
       console.warn("Clipboard access rejected or unavailable in this iframe environment:", e);
-      alert("Bhai, clipboard access blocked lag raha hai. Please input box par touch/click karke manual CTRL+V ya long-press se link paste karein!");
+      alert("Clipboard access is blocked or restricted. Please manually click and use CTRL+V or long-press to paste the link!");
     }
   };
 

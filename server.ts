@@ -73,14 +73,14 @@ app.post("/api/analyze", async (req, res) => {
     const { url } = req.body;
 
     if (!url || typeof url !== "string") {
-      return res.status(400).json({ error: "Bhai, description ya input box me sahi se link copy-paste karo please!" });
+      return res.status(400).json({ error: "Please provide a valid Instagram URL in the input box!" });
     }
 
     // Clean up or extract real URL from the text (supporting leading texts from copy button)
     const extractedUrl = extractInstagramUrl(url.trim());
     if (!extractedUrl) {
       return res.status(400).json({ 
-        error: "Bhai, ye valid Instagram link nahi lag raha hai. Please genuine Reel, Post, Story ya Audio ka link direct copy-paste karein! 📱✨" 
+        error: "This does not seem to be a valid Instagram URL. Please copy and paste a genuine Instagram post, reel, story or audio link!" 
       });
     }
 
