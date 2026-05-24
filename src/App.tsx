@@ -60,7 +60,7 @@ export default function App() {
 
       // Safely handle non-OK responses first to avoid crashing on .json() of HTML pages
       if (!response.ok) {
-        let errorMsg = "Error loading link. Please check your URL and try again.";
+        let errorMsg = `Server turned back an error (Status ${response.status}). Please try again inside a few seconds.`;
         try {
           const contentType = response.headers.get("content-type");
           if (contentType && contentType.includes("application/json")) {
@@ -68,6 +68,10 @@ export default function App() {
             errorMsg = errData.error || errorMsg;
           } else {
             console.warn("Server returned a non-JSON error status code:", response.status);
+            const rawBody = await response.text();
+            if (rawBody.toLowerCase().includes("cannot post") || response.status === 404) {
+              errorMsg = "URL analyzing endpoint was not found on the server. Please build & restart.";
+            }
           }
         } catch (_) {}
         throw new Error(errorMsg);

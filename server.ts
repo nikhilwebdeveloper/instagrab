@@ -56,6 +56,12 @@ const AUDIOS = [
   "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3"  // ambient future
 ];
 
+// Helper function to extract a clean Instagram URL from a string that might contain promotional or sharing text.
+function extractInstagramUrl(input: string): string | null {
+  const match = input.match(/(https?:\/\/(?:www\.)?(?:instagram\.com|instagr\.am)\/[^\s?#]+(?:[^\s]*))/i);
+  return match ? match[1] : null;
+}
+
 // Health Check API
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", mode: ai ? "gemini" : "fallback" });
@@ -70,35 +76,40 @@ app.post("/api/analyze", async (req, res) => {
       return res.status(400).json({ error: "Please provide a valid Instagram URL" });
     }
 
-    // Pre-validate that it looks like Instagram or a related shared URL
-    const isInstagramUrl = /instagram\.com|instagr\.am/i.test(url);
-    if (!isInstagramUrl) {
+    // Clean up or extract real URL from the text (supporting leading texts from copy button)
+    const extractedUrl = extractInstagramUrl(url.trim());
+    if (!extractedUrl) {
       return res.status(400).json({ 
         error: "यह एक वैध इंस्टाग्राम लिंक नहीं है। कृपया असली इंस्टाग्राम पोस्ट, रील, स्टोरी या ऑडियो का लिंक पेस्ट करें।" 
       });
     }
 
     // Parse type based on URL structures:
-    // - reels: instagram.com/reel/C7abcde/
+    // - reels/reel: instagram.com/reel/C7abcde/ or instagram.com/reels/C7abcde/
     // - posts: instagram.com/p/C7abcde/
     // - stories: instagram.com/stories/username/12345/
     // - TV/IGTV: instagram.com/tv/C7abc/
     // - Audio page: instagram.com/reels/audio/12345/
+    // - Share page/Lite shares: instagram.com/share/r/C7abcde/ or instagram.com/share/p/C7abcde/
     let type: 'reel' | 'post' | 'carousel' | 'story' | 'audio' = 'reel';
-    if (url.includes("/p/")) {
+    const lowerUrl = extractedUrl.toLowerCase();
+
+    if (lowerUrl.includes("/reels/audio/") || lowerUrl.includes("/audio/")) {
+      type = "audio";
+    } else if (lowerUrl.includes("/stories/")) {
+      type = "story";
+    } else if (lowerUrl.includes("/p/")) {
       // If it has a Carousel keyword or we determine it's multi-post:
       type = url.includes("carousel") ? "carousel" : "post";
-    } else if (url.includes("/stories/")) {
-      type = "story";
-    } else if (url.includes("/reels/audio/") || url.includes("/audio/")) {
-      type = "audio";
-    } else if (url.includes("/reel/")) {
+    } else if (lowerUrl.includes("/reel/") || lowerUrl.includes("/reels/") || lowerUrl.includes("/tv/") || lowerUrl.includes("/share/r/")) {
       type = "reel";
+    } else if (lowerUrl.includes("/share/p/")) {
+      type = "post";
     }
 
     // Parse ID
     let mediaId = "insta_" + Math.random().toString(36).substring(2, 9);
-    const matchId = url.match(/\/(p|reel|tv|stories|audio)\/([a-zA-Z0-9_\-]+)/);
+    const matchId = extractedUrl.match(/\/(p|reels?|tv|stories|audio|share\/r|share\/p)\/([a-zA-Z0-9_\-]+)/i);
     if (matchId && matchId[2]) {
       mediaId = matchId[2];
     }
@@ -117,7 +128,7 @@ app.post("/api/analyze", async (req, res) => {
     // Use Gemini to intelligently personalize the experience based on URL keywords/structure
     if (ai) {
       try {
-        const prompt = `Analyze this Instagram URL: "${url}". 
+        const prompt = `Analyze this Instagram URL: "${extractedUrl}". 
 Generate a JSON descriptive object mimicking actual Instagram post elements. Let it feel 100% authentic, tailored to the words in the URL if detectable, or styled in a popular culture context.
 Response must use this EXACT JSON schema:
 {
@@ -162,15 +173,15 @@ Output STRICTLY valid JSON only. Do not wrap in markdown tags or add text prefix
       } catch (e) {
         console.warn("Gemini analyze failed or parsed in fallback:", e);
         // In case of error, perform simple URL analysis
-        if (url.toLowerCase().includes("tech")) themeIndex = 3; // Cyberpunk
-        else if (url.toLowerCase().includes("cat") || url.toLowerCase().includes("pet")) themeIndex = 4; // Cat
-        else if (url.toLowerCase().includes("nature") || url.toLowerCase().includes("mountain")) themeIndex = 0; // Nature
-        else if (url.toLowerCase().includes("travel") || url.toLowerCase().includes("sea") || url.toLowerCase().includes("beach")) themeIndex = 1; // Ocean
+        if (extractedUrl.toLowerCase().includes("tech")) themeIndex = 3; // Cyberpunk
+        else if (extractedUrl.toLowerCase().includes("cat") || extractedUrl.toLowerCase().includes("pet")) themeIndex = 4; // Cat
+        else if (extractedUrl.toLowerCase().includes("nature") || extractedUrl.toLowerCase().includes("mountain")) themeIndex = 0; // Nature
+        else if (extractedUrl.toLowerCase().includes("travel") || extractedUrl.toLowerCase().includes("sea") || extractedUrl.toLowerCase().includes("beach")) themeIndex = 1; // Ocean
         else themeIndex = 2; // City
       }
     } else {
       // If no AI, select theme based on keywords
-      const lowerUrl = url.toLowerCase();
+      const lowerUrl = extractedUrl.toLowerCase();
       if (lowerUrl.includes("tech") || lowerUrl.includes("gadget")) {
         themeIndex = 3; // Cyberpunk
         creator = "tech_insider";
@@ -206,7 +217,7 @@ Output STRICTLY valid JSON only. Do not wrap in markdown tags or add text prefix
 
     // Map elements according to requested type
     const responseData: any = {
-      url,
+      url: extractedUrl,
       type,
       id: mediaId,
       title: type.toUpperCase() + " from @" + creator,
