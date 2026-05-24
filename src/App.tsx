@@ -19,6 +19,19 @@ export default function App() {
 
   // Hydrate history from cache
   useEffect(() => {
+    // Probe backend connection
+    fetch("/api/health")
+      .then(r => {
+        console.log(`[HEALTH-CHECK] Response Status: ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        console.log("[HEALTH-CHECK] Connected to backend! Details:", data);
+      })
+      .catch(err => {
+        console.error("[HEALTH-CHECK] Failed to reach Express backend:", err);
+      });
+
     try {
       const stored = localStorage.getItem("instasave_cache_v1");
       if (stored) {

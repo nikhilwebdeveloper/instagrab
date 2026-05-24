@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dns from "dns";
+import fs from "fs";
 
 // Ensure DNS works properly inside server sandbox
 dns.setDefaultResultOrder && dns.setDefaultResultOrder("ipv4first");
@@ -11,6 +12,26 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// Log all incoming requests and dump to workspace server_debug.log
+app.use((req, res, next) => {
+  const logMsg = `[${new Date().toISOString()}] REQUEST: ${req.method} ${req.url} (Body: ${JSON.stringify(req.body) || "none"})\n`;
+  console.log(logMsg.trim());
+  try {
+    fs.appendFileSync(path.join(process.cwd(), "server_debug.log"), logMsg);
+  } catch (e) {
+    console.error("Failed to write to debug file:", e);
+  }
+  next();
+});
+
+// Seed initial startup log
+try {
+  fs.writeFileSync(
+    path.join(process.cwd(), "server_debug.log"),
+    `[${new Date().toISOString()}] EXPRESS SERVER STARTING ON PORT ${PORT}...\n`
+  );
+} catch (e) {}
 
 // Initialize server-side Gemini Client
 let ai: GoogleGenAI | null = null;
@@ -344,6 +365,14 @@ Output STRICTLY valid JSON only. Do not wrap in markdown tags or add text prefix
       error: "An unexpected server error occurred while analyzing the link. Please try again in a moment." 
     });
   }
+});
+
+// Diagnostic fallback for unmatched API requests
+app.all("/api/*", (req, res) => {
+  console.log(`[API FALLBACK 404] Unmatched request: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    error: `Bhai backend routing me unmatched request mila: ${req.method} ${req.originalUrl}. Please make sure you are accessing the correct URL.`
+  });
 });
 
 // Downloader proxy to set correct attachment headers, content type & trigger authentic native browser download
