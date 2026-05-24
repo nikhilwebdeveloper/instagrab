@@ -367,14 +367,6 @@ Output STRICTLY valid JSON only. Do not wrap in markdown tags or add text prefix
   }
 });
 
-// Diagnostic fallback for unmatched API requests
-app.all("/api/*", (req, res) => {
-  console.log(`[API FALLBACK 404] Unmatched request: ${req.method} ${req.originalUrl}`);
-  res.status(404).json({
-    error: `Bhai backend routing me unmatched request mila: ${req.method} ${req.originalUrl}. Please make sure you are accessing the correct URL.`
-  });
-});
-
 // Downloader proxy to set correct attachment headers, content type & trigger authentic native browser download
 app.get("/api/proxy/download", async (req, res) => {
   const mediaUrl = req.query.url as string;
@@ -403,6 +395,14 @@ app.get("/api/proxy/download", async (req, res) => {
     // Redirect to the direct media link if proxy stream setup encounters errors
     res.redirect(mediaUrl);
   }
+});
+
+// Diagnostic fallback for unmatched API requests (must follow all specific API endpoints)
+app.all("/api/*", (req, res) => {
+  console.log(`[API FALLBACK 404] Unmatched request: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    error: `Bhai backend routing me unmatched request mila: ${req.method} ${req.originalUrl}. Please make sure you are accessing the correct URL.`
+  });
 });
 
 // Bind standard listener immediately to prevent any startup connection drops or cold gateway 404s

@@ -83,7 +83,7 @@ export default function App() {
             console.warn("Server returned a non-JSON error status code:", response.status);
             const rawBody = await response.text();
             if (rawBody.toLowerCase().includes("cannot post") || response.status === 404) {
-              errorMsg = "The analysis service is currently refreshing. Please wait a few seconds and try again.";
+              errorMsg = "Backend routing is loading or currently unavailable. Please click 'Analyze Content Link' again in 2-3 seconds to verify the connection!";
             }
           }
         } catch (_) {}
