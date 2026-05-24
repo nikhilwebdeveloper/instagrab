@@ -58,7 +58,7 @@ const AUDIOS = [
 
 // Helper function to extract a clean Instagram URL from a string that might contain promotional or sharing text.
 function extractInstagramUrl(input: string): string | null {
-  const match = input.match(/(https?:\/\/(?:www\.)?(?:instagram\.com|instagr\.am)\/[^\s?#]+(?:[^\s]*))/i);
+  const match = input.match(/(https?:\/\/(?:[a-zA-Z0-9-]+\.)*(?:instagram\.com|instagr\.am)\/[^\s]+)/i);
   return match ? match[1] : null;
 }
 
@@ -73,14 +73,14 @@ app.post("/api/analyze", async (req, res) => {
     const { url } = req.body;
 
     if (!url || typeof url !== "string") {
-      return res.status(400).json({ error: "Please provide a valid Instagram URL" });
+      return res.status(400).json({ error: "Bhai, description ya input box me sahi se link copy-paste karo please!" });
     }
 
     // Clean up or extract real URL from the text (supporting leading texts from copy button)
     const extractedUrl = extractInstagramUrl(url.trim());
     if (!extractedUrl) {
       return res.status(400).json({ 
-        error: "यह एक वैध इंस्टाग्राम लिंक नहीं है। कृपया असली इंस्टाग्राम पोस्ट, रील, स्टोरी या ऑडियो का लिंक पेस्ट करें।" 
+        error: "Bhai, ye valid Instagram link nahi lag raha hai. Please genuine Reel, Post, Story ya Audio ka link direct copy-paste karein! 📱✨" 
       });
     }
 
@@ -100,7 +100,7 @@ app.post("/api/analyze", async (req, res) => {
       type = "story";
     } else if (lowerUrl.includes("/p/")) {
       // If it has a Carousel keyword or we determine it's multi-post:
-      type = url.includes("carousel") ? "carousel" : "post";
+      type = lowerUrl.includes("carousel") ? "carousel" : "post";
     } else if (lowerUrl.includes("/reel/") || lowerUrl.includes("/reels/") || lowerUrl.includes("/tv/") || lowerUrl.includes("/share/r/")) {
       type = "reel";
     } else if (lowerUrl.includes("/share/p/")) {
