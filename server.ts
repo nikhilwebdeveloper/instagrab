@@ -58,7 +58,7 @@ const AUDIOS = [
 
 // Helper function to extract a clean Instagram URL from a string that might contain promotional or sharing text.
 function extractInstagramUrl(input: string): string | null {
-  const match = input.match(/(https?:\/\/(?:[a-zA-Z0-9-]+\.)*(?:instagram\.com|instagr\.am)\/[^\s]+)/i);
+  const match = input.match(/(https?:\/\/(?:[a-zA-Z0-9-]+\.)*(?:instagram\.com|instagr\.am)\/[^\s,;?!()"]+)/i);
   return match ? match[1] : null;
 }
 
@@ -109,9 +109,32 @@ app.post("/api/analyze", async (req, res) => {
 
     // Parse ID
     let mediaId = "insta_" + Math.random().toString(36).substring(2, 9);
-    const matchId = extractedUrl.match(/\/(p|reels?|tv|stories|audio|share\/r|share\/p)\/([a-zA-Z0-9_\-]+)/i);
-    if (matchId && matchId[2]) {
-      mediaId = matchId[2];
+    
+    if (lowerUrl.includes("/reels/audio/") || lowerUrl.includes("/audio/")) {
+      const audioMatch = extractedUrl.match(/\/(?:reels\/audio|audio)\/([a-zA-Z0-9_\-]+)/i);
+      if (audioMatch && audioMatch[1]) {
+        mediaId = audioMatch[1];
+      }
+    } else if (lowerUrl.includes("/stories/")) {
+      const storyMatch = extractedUrl.match(/\/stories\/([a-zA-Z0-9_\.]+)\/([a-zA-Z0-9_\-]+)/i);
+      if (storyMatch && storyMatch[2]) {
+        mediaId = storyMatch[2];
+      } else {
+        const fallbackStory = extractedUrl.match(/\/stories\/([a-zA-Z0-9_\.]+)/i);
+        if (fallbackStory && fallbackStory[1]) {
+          mediaId = fallbackStory[1];
+        }
+      }
+    } else if (lowerUrl.includes("/share/r/") || lowerUrl.includes("/share/p/")) {
+      const shareMatch = extractedUrl.match(/\/share\/(r|p)\/([a-zA-Z0-9_\-]+)/i);
+      if (shareMatch && shareMatch[2]) {
+        mediaId = shareMatch[2];
+      }
+    } else {
+      const generalMatch = extractedUrl.match(/\/(p|reel|reels|tv)\/([a-zA-Z0-9_\-]+)/i);
+      if (generalMatch && generalMatch[2]) {
+        mediaId = generalMatch[2];
+      }
     }
 
     // Default Fallback values
@@ -353,15 +376,21 @@ app.get("/api/proxy/download", async (req, res) => {
   }
 });
 
-// Configure Vite middleware and SPA fallback
+// Bind standard listener immediately to prevent any startup connection drops or cold gateway 404s
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Instagram Downloader Server actively running on http://localhost:${PORT}`);
+});
+
+// Configure Vite middleware and SPA fallback asynchronously in the background
 async function launchServer() {
   if (process.env.NODE_ENV !== "production") {
+    console.log("Initializing Vite Dev Server in the background...");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-    console.log("Mounted Vite Dev Server Middleware");
+    console.log("Mounted Vite Dev Server Middleware successfully.");
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
@@ -370,10 +399,8 @@ async function launchServer() {
     });
     console.log("Serving production assets from dist/");
   }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Development Server listening at http://localhost:${PORT}`);
-  });
 }
 
-launchServer();
+launchServer().catch((err) => {
+  console.error("Failed to compile or mount background Vite middleware:", err);
+});
