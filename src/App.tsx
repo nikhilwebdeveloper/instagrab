@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { DownloadHistoryItem, InstagramMediaDetails } from "./types";
 import Header from "./components/Header";
 import DownloaderForm from "./components/DownloaderForm";
+import ProfilePostsExplorer from "./components/ProfilePostsExplorer";
 import MediaPreview from "./components/MediaPreview";
 import DownloadHistory from "./components/DownloadHistory";
 import FeaturesFAQ from "./components/FeaturesFAQ";
@@ -13,6 +14,7 @@ export default function App() {
   const [mediaDetails, setMediaDetails] = useState<InstagramMediaDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'link' | 'profile'>('link');
   
   // Safe SSR & client LocalStorage sync of Download History
   const [history, setHistory] = useState<DownloadHistoryItem[]>([]);
@@ -103,6 +105,14 @@ export default function App() {
     }
   };
 
+  const handleSelectProfilePost = (post: any) => {
+    setMediaDetails(post);
+    // Smooth scroll down to media preview area
+    setTimeout(() => {
+      document.getElementById("preview-results-board")?.scrollIntoView({ behavior: "smooth" });
+    }, 150);
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col font-sans transition-all duration-300 relative selection:bg-indigo-600 selection:text-white">
       
@@ -116,7 +126,7 @@ export default function App() {
       <Header />
 
       {/* Main Container Layout */}
-      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10 w-full space-y-12">
+      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10 w-full space-y-8">
         
         {/* Onboarding Highlights (Clean and high contrast) */}
         <section id="banner-highlights" className="text-center space-y-3 max-w-2xl mx-auto pt-2">
@@ -132,14 +142,46 @@ export default function App() {
           </p>
         </section>
 
-        {/* Downloader Form Area */}
+        {/* Modern high contrast Navigation Tabs */}
+        <div className="flex justify-center max-w-sm mx-auto p-1.5 bg-slate-100 rounded-2xl border border-slate-200/80">
+          <button
+            onClick={() => setActiveTab('link')}
+            className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center space-x-1.5 cursor-pointer ${
+              activeTab === 'link'
+                ? "bg-white text-indigo-600 shadow-sm border border-slate-200/30"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Compass className="h-4 w-4" />
+            <span>Direct Link</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('profile')}
+            className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center space-x-1.5 cursor-pointer ${
+              activeTab === 'profile'
+                ? "bg-white text-pink-600 shadow-sm border border-slate-200/30"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Instagram className="h-4 w-4" />
+            <span>Profile Explorer</span>
+          </button>
+        </div>
+
+        {/* Downloader Form Area / Profile Explorer Area based on state */}
         <section id="downloader-main-form" className="relative">
-          <DownloaderForm 
-            onAnalyze={handleAnalyzeUrl} 
-            isLoading={isLoading} 
-            error={error}
-            directUrl={directPastedUrl} 
-          />
+          {activeTab === 'link' ? (
+            <DownloaderForm 
+              onAnalyze={handleAnalyzeUrl} 
+              isLoading={isLoading} 
+              error={error}
+              directUrl={directPastedUrl} 
+            />
+          ) : (
+            <ProfilePostsExplorer 
+              onSelectPost={handleSelectProfilePost} 
+            />
+          )}
         </section>
 
         {/* Media Preview Dashboard View */}
@@ -149,7 +191,7 @@ export default function App() {
               <div className="max-w-7xl mx-auto flex items-center justify-between pl-1.5 pr-1.5 mb-2.5">
                 <div className="flex items-center space-x-2 text-slate-500 text-xs">
                   <Clock className="h-3.5 w-3.5 text-indigo-600 animate-pulse" />
-                  <span className="font-sans font-medium">Link successfully verified. Select output formats below:</span>
+                  <span className="font-sans font-medium">Verified media. Select output format below to save:</span>
                 </div>
               </div>
               <MediaPreview 
@@ -166,6 +208,7 @@ export default function App() {
           onClear={handleClearHistory} 
           onSelectUrl={(url) => {
             setDirectPastedUrl(url);
+            setActiveTab('link');
             handleAnalyzeUrl(url);
             // Smooth scroll to form in viewport
             document.getElementById("downloader-main-form")?.scrollIntoView({ behavior: "smooth" });
